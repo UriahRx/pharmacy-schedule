@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>藥局自動排班系統</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="manifest" href="manifest.json">
+    <!-- iOS PWA支援 -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="theme-color" content="#2c3e50">
+</head>
+<body>
+    <div class="app-container">
+        <!-- 頂部控制欄 -->
+        <header class="app-header">
+            <div class="header-left">
+                <h1 class="app-title">🧠 藥局排班系統</h1>
+                <div class="app-subtitle">符合台灣勞基法四週變形工時</div>
+            </div>
+            <div class="header-right">
+                <div class="user-info">
+                    <span class="user-name" id="current-user">店長模式</span>
+                    <span class="user-role" id="current-role">管理員</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- 控制面板 -->
+        <div class="control-panel">
+            <div class="control-group">
+                <label for="start-date">開始日期：</label>
+                <input type="date" id="start-date" value="2026-04-01">
+                
+                <label for="period-length">排班週期：</label>
+                <select id="period-length">
+                    <option value="4">四週 (28天)</option>
+                    <option value="2">兩週 (14天)</option>
+                    <option value="1">一週 (7天)</option>
+                </select>
+            </div>
+            
+            <div class="button-group">
+                <button id="btn-load-data" class="btn btn-secondary">📥 載入資料</button>
+                <button id="btn-auto-schedule" class="btn btn-primary">🤖 自動排班</button>
+                <button id="btn-validate" class="btn btn-warning">⚖️ 合規檢查</button>
+                <button id="btn-export" class="btn btn-success">📤 匯出班表</button>
+                <button id="btn-reset" class="btn btn-danger">🔄 重設</button>
+            </div>
+        </div>
+
+        <!-- 主要內容區 -->
+        <main class="main-content">
+            <!-- 左側：員工列表 -->
+            <aside class="employee-sidebar">
+                <h3>👥 員工列表</h3>
+                <div class="employee-list" id="employee-list">
+                    <!-- 動態載入員工 -->
+                    <div class="loading">載入員工資料中...</div>
+                </div>
+                
+                <div class="employee-stats">
+                    <h4>📊 統計資訊</h4>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <span class="stat-label">總員工</span>
+                            <span class="stat-value" id="stat-total-employees">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">藥師</span>
+                            <span class="stat-value" id="stat-pharmacists">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">平均工時</span>
+                            <span class="stat-value" id="stat-avg-hours">0h</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">合規率</span>
+                            <span class="stat-value" id="stat-compliance">0%</span>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- 中間：排班編輯器 -->
+            <section class="schedule-editor">
+                <div class="editor-header">
+                    <h3>📅 排班編輯器</h3>
+                    <div class="editor-controls">
+                        <button id="btn-edit-mode" class="btn btn-small">✏️ 編輯模式</button>
+                        <button id="btn-clear-all" class="btn btn-small btn-danger">🗑️ 清空</button>
+                    </div>
+                </div>
+                
+                <div class="schedule-container">
+                    <div class="schedule-grid" id="schedule-grid">
+                        <!-- 動態生成排班網格 -->
+                        <div class="grid-placeholder">
+                            <p>點擊「自動排班」開始生成排班表</p>
+                            <p>或「載入資料」使用範例資料</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="shift-legend">
+                    <div class="legend-item">
+                        <span class="legend-color morning"></span>
+                        <span class="legend-text">早班 (08:00-16:00)</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-color afternoon"></span>
+                        <span class="legend-text">中班 (12:00-20:00)</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-color evening"></span>
+                        <span class="legend-text">晚班 (16:00-24:00)</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-color violation"></span>
+                        <span class="legend-text">違規班次</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 右側：合規檢查面板 -->
+            <aside class="compliance-panel">
+                <h3>⚖️ 法律合規檢查</h3>
+                <div class="compliance-status" id="compliance-status">
+                    <div class="status-loading">
+                        <div class="spinner"></div>
+                        <p>等待排班資料...</p>
+                    </div>
+                </div>
+                
+                <div class="violation-list" id="violation-list">
+                    <h4>⚠️ 違規項目</h4>
+                    <div class="no-violations" id="no-violations">
+                        <p>✅ 目前無違規項目</p>
+                    </div>
+                    <div class="violations-container" id="violations-container" style="display: none;">
+                        <!-- 動態顯示違規 -->
+                    </div>
+                </div>
+                
+                <div class="legal-rules">
+                    <h4>📜 勞基法規定</h4>
+                    <ul class="rules-list">
+                        <li>✅ 四週總工時 ≤ 160小時</li>
+                        <li>✅ 每週工時 ≤ 40小時（平均）</li>
+                        <li>✅ 連續工作 ≤ 6天</li>
+                        <li>✅ 每7日 ≥ 1天休息</li>
+                        <li>✅ 班次間隔 ≥ 11小時</li>
+                        <li>✅ 每月加班 ≤ 46小時</li>
+                    </ul>
+                </div>
+            </aside>
+        </main>
+
+        <!-- 底部狀態欄 -->
+        <footer class="app-footer">
+            <div class="footer-left">
+                <span class="connection-status" id="connection-status">
+                    <span class="status-dot online"></span>
+                    <span>線上模式</span>
+                </span>
+                <span class="data-status" id="data-status">資料未儲存</span>
+            </div>
+            <div class="footer-center">
+                <span class="schedule-info" id="schedule-info">未選擇排班期間</span>
+            </div>
+            <div class="footer-right">
+                <button id="btn-save" class="btn btn-small">💾 儲存資料</button>
+                <button id="btn-help" class="btn btn-small">❓ 說明</button>
+            </div>
+        </footer>
+    </div>
+
+    <!-- 模態框：資料編輯 -->
+    <div id="modal-edit-data" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>📝 編輯員工資料</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- 動態載入編輯表單 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 模態框：合規報告 -->
+    <div id="modal-compliance-report" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>📋 詳細合規報告</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="compliance-report-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 載入JavaScript -->
+    <script src="js/data-manager.js"></script>
+    <script src="js/validator.js"></script>
+    <script src="js/scheduler.js"></script>
+    <script src="js/ui-manager.js"></script>
+    <script src="js/app.js"></script>
+    
+    <!-- PWA Service Worker -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js').then(registration => {
+                    console.log('ServiceWorker 註冊成功:', registration.scope);
+                }).catch(error => {
+                    console.log('ServiceWorker 註冊失敗:', error);
+                });
+            });
+        }
+    </script>
+</body>
+</html>
